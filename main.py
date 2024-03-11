@@ -149,7 +149,7 @@ def fetch(lastday: Datetime):
     start = lastday.strftime(r"%Y-%m-%d") + " 09:30:00"
     end   = lastday.strftime(r"%Y-%m-%d") + " 15:00:00"
 
-    for idx in config.index_codes:
+    for idx in tqdm(config.index_codes):
         # TODO: 整合接口
         data: pd.DataFrame = ak.index_zh_a_hist_min_em(
             symbol     = idx, 
@@ -194,6 +194,41 @@ def fetch(lastday: Datetime):
         data = data[data.index.day == lastday.day]
         
         dump_data(data, idx+".IDX", lastday)
+        time.sleep(1)
+
+    for etf in tqdm(config.etfs):
+        data: pd.DataFrame = ak.fund_etf_hist_min_em(
+            symbol     = etf, 
+            period     = "1", 
+            adjust     = "qfq",
+            start_date = start, 
+            end_date   = end, 
+        )
+
+        data = data.rename(columns={
+            "时间": "time",
+            "开盘": "open",
+            "收盘": "close",
+            "最高": "high",
+            "最低": "low",
+            "成交量": "volume",
+        })[["time", "open", "close", "high", "low", "volume"]]
+
+        data.loc[:, "time"] = pd.to_datetime(data["time"])
+        data = data.set_index("time").sort_index(ascending=True)
+
+        if data.index[0].strftime(r"%H:%M:%S") != "09:30:00" or \
+            data.index[-1].strftime(r"%H:%M:%S") != "15:00:00":
+            # check: 只存放当天的数据
+            logger.debug(code)
+            logger.debug(data)
+            raise RuntimeError(data.index[0].strftime(r"%H:%M:%S"), data.index[-1].strftime(r"%H:%M:%S"))
+
+        data = data[data.index.day == lastday.day]
+        
+        dump_data(data, idx+".ETF", lastday)
+        time.sleep(1)
+
 
 if __name__ == "__main__":
 
