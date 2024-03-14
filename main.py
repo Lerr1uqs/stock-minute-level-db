@@ -226,7 +226,7 @@ def fetch(lastday: Datetime):
 
         data = data[data.index.day == lastday.day]
         
-        dump_data(data, idx+".ETF", lastday)
+        dump_data(data, etf+".ETF", lastday)
         time.sleep(1)
 
 
